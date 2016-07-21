@@ -1,0 +1,2 @@
+# character
+Chinese character analyzer
