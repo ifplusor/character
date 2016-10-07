@@ -5,6 +5,7 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.ListIterator;
 import java.util.Map;
@@ -29,7 +30,7 @@ public class TrieMatcher<E> implements Matcher<E> {
 			return;
 		
 		String pattern = null;
-		if (key.contains(".*?")) {
+		if (key.contains(".*?")) {  // 不定长模糊匹配，扩展为定长模式匹配插入字典树
 			pattern = key.replace(".*?", ".");
 			String[] o = pattern.split("\\.");
 			
@@ -64,7 +65,7 @@ public class TrieMatcher<E> implements Matcher<E> {
 	
 	public List<MatchedContent<E>> match(String content, Boolean intellWeight, boolean returnAll) {
 		
-		List<MatcherWorker> lstMatcher = new ArrayList<MatcherWorker>();
+		List<MatcherWorker> lstMatcher = new LinkedList<MatcherWorker>();  // 需要频繁插入删除
 		List<MatchedContent<E>> lstMatchedTmp = new ArrayList<MatchedContent<E>>();
 		
 		for (int index = 0; index < content.length(); index++) {
@@ -233,21 +234,21 @@ public class TrieMatcher<E> implements Matcher<E> {
 	
 	// 字典树节点
 	private class TrieNode {
-		boolean matched = false;
-		boolean hasnext = false;
-		boolean fuzzy = false;
-		Map<Character, TrieNode> htNext = new HashMap<Character, TrieNode>();
+		boolean matched = false;  // 匹配
+		boolean hasnext = false;  // 有后续
+		boolean fuzzy = false;    // 模糊匹配
+		Map<Character, TrieNode> htNext = null;
 
 		int level = 0;
 		
 		Pair<String, E> keyValue = null;
-		List<Pair<String, E>> lstKeyValue = null;
+		List<Pair<String, E>> lstKeyValue = null;  // 一个关键词对应多个value
 		
 		public TrieNode() {
 			++NODENUM;
 		}
 		
-		public void addBranch(String pattern, String key, E value, int level) {
+		public synchronized void addBranch(String pattern, String key, E value, int level) {
 			
 			if (pattern.length() == 0) {  // 叶子节点
 				Pair<String, E> kv = new Pair<String, E>();
@@ -279,12 +280,18 @@ public class TrieMatcher<E> implements Matcher<E> {
 			}
 			
 			Character nextChar = pattern.charAt(0);
-			TrieNode nextNode = htNext.get(nextChar);
+			TrieNode nextNode = null;
+			if (htNext == null) {
+				htNext = new HashMap<Character, TrieNode>();
+			} else {
+				nextNode = htNext.get(nextChar);
+			}
 			if (nextNode == null) {
 				nextNode = new TrieNode();
 				htNext.put(nextChar, nextNode);
 				this.hasnext = true;
 			}
+			
 			nextNode.addBranch(pattern.substring(1), key, value, level);
 			if (nextChar == '?') {
 				this.fuzzy = true;

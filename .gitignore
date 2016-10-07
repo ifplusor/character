@@ -11,6 +11,8 @@ buildNumber.properties
 /.settings
 /.classpath
 /.project
+/.idea
+*.iml
 
 /data/*
 /store/
